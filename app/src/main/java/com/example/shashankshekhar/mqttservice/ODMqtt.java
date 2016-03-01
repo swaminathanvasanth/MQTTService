@@ -38,14 +38,14 @@ public class ODMqtt implements MqttCallback {
 
     private MqttConnectOptions connectOptions = null;
     private MqttAsyncClient mqttClient = null;
+
     private String clientId;
     private Context applicationContext;
 
     public ODMqtt(Context appContext, String clientId) {
         this.applicationContext = appContext;
         this.clientId = clientId;
-        NetworkConnectivityChangeReceiver obj = new NetworkConnectivityChangeReceiver();
-        obj.initMqttObj(this);
+        NetworkConnectivityChangeReceiver.initMqttObj(this);
     }
 
     private void setConnectionOptions() {
