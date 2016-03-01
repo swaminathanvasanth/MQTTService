@@ -28,12 +28,11 @@ public class MQTTService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         final ODMqtt odMqtt = new ODMqtt(getApplicationContext(),randomString());
-        boolean isConnected =  odMqtt.connectToMqttBroker();
-        odMqtt.setBroadcastReceiver();
+         odMqtt.connectToMqttBroker();
         new Thread(new Runnable() {
             @Override
             public void run() {
-                for (int i = 0; i < 30; i++) {
+                for (int i = 0; i < 40; i++) {
                     Long time = System.currentTimeMillis();
                     time = time/1000;
                     odMqtt.publishMessge("SS"+ time.toString()+SAMPLE_TEST_DATA);
