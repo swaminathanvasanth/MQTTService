@@ -13,9 +13,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
     }
     public void startService (View view) {
-        startService(new Intent(this, MQTTService.class));
+        startService(new Intent(this, PhoneSignalStrengthReaderService.class));
     }
     public void stopService (View view) {
-        stopService(new Intent(this, MQTTService.class));
+        stopService(new Intent(this, PhoneSignalStrengthReaderService.class));
     }
 }
