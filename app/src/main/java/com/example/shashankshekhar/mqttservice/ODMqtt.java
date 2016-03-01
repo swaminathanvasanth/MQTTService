@@ -40,8 +40,6 @@ public class ODMqtt implements MqttCallback {
     private MqttAsyncClient mqttClient = null;
     private String clientId;
     private Context applicationContext;
-    private boolean isConnecting = false;
-
     public ODMqtt(Context appContext, String clientId) {
         this.applicationContext = appContext;
         this.clientId = clientId;
@@ -66,22 +64,15 @@ public class ODMqtt implements MqttCallback {
     }
 
     public boolean connectToMqttBroker() {
-        if (isConnecting == true) {
-            printLog("connection in progress.. returning");
-            return false;
-        }
         setConnectionOptions();
         IMqttToken token;
         try {
-            isConnecting = true;
             printLog("sending connect call");
             token = mqttClient.connect(connectOptions);
             printLog("connect call done");
-            isConnecting = false;
             mqttClient.setCallback(this);
             return true;
         } catch (MqttException e) {
-            isConnecting = false;
             e.printStackTrace();
             printLog("exception, could not connect to mqtt");
             return false;
