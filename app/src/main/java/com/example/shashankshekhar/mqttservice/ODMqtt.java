@@ -24,8 +24,8 @@ import java.util.UUID;
 public class ODMqtt implements MqttCallback {
     private final int QoS = 1;
     private final String BROKER_ADDRESS = "tcp://smartx.cds.iisc.ac.in:1883";
-    private final String USERNAME = "admin";
-    private final String PASSWORD = "password";
+    private final String USERNAME = "ODAppUser";
+    private final String PASSWORD = "ODApp@Smartx";
     private final String TAG = "Open-Day";
     private final String TOPIC_NAME = "iisc/smartx/crowd/network/ODRSSI";
     private final String TEST_TOPIC_NAME = "iisc/smartx/mobile/water/data";
