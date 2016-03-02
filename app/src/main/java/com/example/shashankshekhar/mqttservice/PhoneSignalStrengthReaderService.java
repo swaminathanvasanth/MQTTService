@@ -16,12 +16,17 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
+import android.telephony.CellInfo;
+import android.telephony.CellInfoCdma;
 import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoLte;
 import android.telephony.CellInfoWcdma;
+import android.telephony.CellSignalStrengthCdma;
 import android.telephony.CellSignalStrengthGsm;
 import android.telephony.CellSignalStrengthLte;
 import android.telephony.CellSignalStrengthWcdma;
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -32,6 +37,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.List;
 import java.util.TimeZone;
 import java.util.UUID;
 
@@ -114,6 +120,11 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     public static File mainfolder;
     public static String root;
     public static File file;
+    MyPhoneStateListener myPhoneStateListener;
+
+    public static final int UNKNOW_CODE = 99;
+    int MAX_SIGNAL_DBM_VALUE = 31;
+
 
     public PhoneSignalStrengthReaderService() {
     }
@@ -149,7 +160,20 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         }
 
         tel = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+
+        myPhoneStateListener = new MyPhoneStateListener();
+        tel = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+        tel.listen(myPhoneStateListener, PhoneStateListener.LISTEN_CALL_FORWARDING_INDICATOR |
+                PhoneStateListener.LISTEN_CALL_STATE |
+                PhoneStateListener.LISTEN_CELL_LOCATION |
+                PhoneStateListener.LISTEN_DATA_ACTIVITY |
+                PhoneStateListener.LISTEN_DATA_CONNECTION_STATE |
+                PhoneStateListener.LISTEN_MESSAGE_WAITING_INDICATOR |
+                PhoneStateListener.LISTEN_SERVICE_STATE |
+                PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -162,66 +186,93 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
             return;
         }
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, PhoneSignalStrengthReaderService.this);
-
         odMqtt = new ODMqtt(getApplicationContext(), randomString());
         odMqtt.connectToMqttBroker();
-
-        //odMqtt.setBroadcastReceiver();
 
         new Thread() {
             public void run() {
                 while (true) {
                     try {
-                        if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_EDGE) {
-                            cellinfogsm = (CellInfoGsm) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthGsm.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_EDGE";
-                            Log.e("cellinfogsm EDGE", cellinfogsm.toString() + " : " + RSSI);
-                            collectData();
-                        } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_GPRS) {
-                            cellinfogsm = (CellInfoGsm) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthGsm.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_GPRS";
-                            Log.e("cellinfogsm GPRS", cellinfogsm.toString() + " : " + RSSI);
-                            collectData();
-                        } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSPA) {
-                            cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthWcdma.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_HSPA";
-                            Log.e("cellInfoWcdma HSPA", cellInfoWcdma.toString() + " : " + RSSI);
-                            collectData();
-                        } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSDPA) {
-                            cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthWcdma.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_HSDPA";
-                            Log.e("cellInfoWcdma HSDPA", cellInfoWcdma.toString() + " : " + RSSI);
-                            collectData();
-                        } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSPAP) {
-                            cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthWcdma.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_HSPAP";
-                            Log.e("cellInfoWcdma HSPAP", cellInfoWcdma.toString() + " : " + RSSI);
-                            collectData();
-                        } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSUPA) {
-                            cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthWcdma.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_HSUPA";
-                            Log.e("cellInfoWcdma HSUPA", cellInfoWcdma.toString() + " : " + RSSI);
-                            collectData();
-                        } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_LTE) {
-                            cellInfoLte = (CellInfoLte) tel.getAllCellInfo().get(0);
-                            cellSignalStrengthLte = cellInfoLte.getCellSignalStrength();
-                            RSSI = "" + cellSignalStrengthLte.getDbm();
-                            NetworkConnectionType = "NETWORK_TYPE_LTE";
-                            Log.e("cellInfoLTE LTE", cellInfoLte.toString() + " : " + RSSI);
-                            collectData();
+
+                        NetworkConnectionType = getNetworkTypeName(tel.getNetworkType());
+                        Log.e("NetworkConnectionType",NetworkConnectionType);
+
+                        if (tel.getAllCellInfo() != null && tel.getAllCellInfo().size() != 0) {
+
+                            if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_EDGE) {
+                                try {
+                                    getNetworkTypeName(tel.getNetworkType());
+                                    cellinfogsm = (CellInfoGsm) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthGsm.getDbm();
+                                    Log.e("cellinfogsm EDGE", cellinfogsm.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_GPRS) {
+                                try {
+                                    cellinfogsm = (CellInfoGsm) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthGsm.getDbm();
+                                    Log.e("cellinfogsm GPRS", cellinfogsm.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSPA) {
+                                try {
+                                    cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthWcdma.getDbm();
+                                    Log.e("cellInfoWcdma HSPA", cellInfoWcdma.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSDPA) {
+                                try {
+                                    cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthWcdma.getDbm();
+                                    Log.e("cellInfoWcdma HSDPA", cellInfoWcdma.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSPAP) {
+                                try {
+                                    cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthWcdma.getDbm();
+                                    Log.e("cellInfoWcdma HSPAP", cellInfoWcdma.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSUPA) {
+                                try {
+                                    cellInfoWcdma = (CellInfoWcdma) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthWcdma.getDbm();
+                                    Log.e("cellInfoWcdma HSUPA", cellInfoWcdma.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_LTE) {
+                                try {
+                                    cellInfoLte = (CellInfoLte) tel.getAllCellInfo().get(0);
+                                    cellSignalStrengthLte = cellInfoLte.getCellSignalStrength();
+                                    RSSI = "" + cellSignalStrengthLte.getDbm();
+                                    Log.e("cellInfoLTE LTE", cellInfoLte.toString() + " : " + RSSI);
+                                    collectData();
+                                } catch (ClassCastException c) {
+
+                                }
+                            }
                         }
+
                         Log.e("Thread Running", "Thread Running");
                         isNetworkEnabled = isNetworkAvailable();
 
@@ -238,6 +289,77 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
             }
         }.start();
 
+    }
+
+    private String getNetworkTypeName(int networkType) {
+
+        switch (networkType) {
+            case TelephonyManager.NETWORK_TYPE_GPRS:
+                return "2G_GPRS";
+            case TelephonyManager.NETWORK_TYPE_EDGE:
+                return "2G_EDGE";
+            case TelephonyManager.NETWORK_TYPE_CDMA:
+                return "2G_CDMA";
+            case TelephonyManager.NETWORK_TYPE_1xRTT:
+                return "2G_1xRTT";
+            case TelephonyManager.NETWORK_TYPE_IDEN:
+                return "2G_IDEN";
+            case TelephonyManager.NETWORK_TYPE_UMTS:
+                return "3G_UMTS";
+            case TelephonyManager.NETWORK_TYPE_EVDO_0:
+                return "3G_EVDO_O";
+            case TelephonyManager.NETWORK_TYPE_EVDO_A:
+                return "3G_EVDO_A";
+            case TelephonyManager.NETWORK_TYPE_HSDPA:
+                return "3G_HSDPA";
+            case TelephonyManager.NETWORK_TYPE_HSUPA:
+                return "3G_HSUPA";
+            case TelephonyManager.NETWORK_TYPE_HSPA:
+                return "3G_HSPA";
+            case TelephonyManager.NETWORK_TYPE_EVDO_B:
+                return "3G_EVOD_B";
+            case TelephonyManager.NETWORK_TYPE_EHRPD:
+                return "3G_EHRPD";
+            case TelephonyManager.NETWORK_TYPE_HSPAP:
+                return "3G_HSPAP";
+            case TelephonyManager.NETWORK_TYPE_LTE:
+                return "4G_LTE";
+            default:
+                return "Unknown";
+        }
+    }
+
+
+    private class MyPhoneStateListener extends PhoneStateListener {
+        /* Get the Signal strength from the provider, each tiome there is an update */
+
+        @Override
+        public void onCellInfoChanged(List<CellInfo> cellInfo) {
+            super.onCellInfoChanged(cellInfo);
+            System.out.println("onCellInfoChanged" + cellInfo.toString());
+        }
+
+        @Override
+        public void onDataConnectionStateChanged(int state, int networkType) {
+            super.onDataConnectionStateChanged(state, networkType);
+            Log.e("networkType", "" + networkType);
+        }
+
+        @Override
+        public void onSignalStrengthsChanged(SignalStrength signalStrength) {
+            super.onSignalStrengthsChanged(signalStrength);
+
+
+            if (null != signalStrength && signalStrength.getGsmSignalStrength() != UNKNOW_CODE) {
+                int signalStrengthPercent = calculateSignalStrengthInPercent(signalStrength.getGsmSignalStrength());
+                Log.e("signalStrengthGSM %", "" + signalStrengthPercent);
+                getSignalStrength();
+            }
+        }
+    }
+
+    private int calculateSignalStrengthInPercent(int signalStrength) {
+        return (int) ((float) signalStrength / MAX_SIGNAL_DBM_VALUE * 100);
     }
 
     private void collectData() {
@@ -321,16 +443,16 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         }
 
 
-        Log.e("simOperator", simOperator);
-        Log.e("simOperatorName", simOperatorName);
-        Log.e("networkOperator", networkOperator);
-        Log.e("NetworkOperatorName", NetworkOperatorName);
-        Log.e("NetworkType", NetworkType);
-        Log.e("NetworkConnectionType", NetworkConnectionType);
-        Log.e("PhoneType", PhoneType);
-        Log.e("CallState", CallState);
-        Log.e("CellLocation", CellLocation);
-        Log.e("DeviceSoftwareVersion", DeviceSoftwareVersion);
+        Log.e("simOperator", "---" + simOperator);
+        Log.e("simOperatorName", "---" + simOperatorName);
+        Log.e("networkOperator", "---" + networkOperator);
+        Log.e("NetworkOperatorName", "---" + NetworkOperatorName);
+        Log.e("NetworkType", "---" + NetworkType);
+        Log.e("NetworkConnectionType", "---" + NetworkConnectionType);
+        Log.e("PhoneType", "---" + PhoneType);
+        Log.e("CallState", "---" + CallState);
+        Log.e("CellLocation", "---" + CellLocation);
+        Log.e("DeviceSoftwareVersion", "---" + DeviceSoftwareVersion);
         Log.e("latitude", "" + latitude);
         Log.e("longitude", "" + longitude);
 
