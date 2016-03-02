@@ -8,6 +8,8 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -96,6 +98,10 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     Context context;
     ODMqtt odMqtt;
+    ConnectivityManager conMan;
+    boolean isWifiEnabled;
+    boolean is3GEnabled;
+
     public PhoneSignalStrengthReaderService() {
     }
 
@@ -115,6 +121,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         MyListener = new MyPhoneStateListener();
         tel.listen(MyListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);*/
 
+        conMan = ((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE));
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -190,6 +197,12 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                             collectData();
                         }
                         Log.e("Thread Running", "Thread Running");
+
+
+                        isWifiEnabled = conMan.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isAvailable();
+                        is3GEnabled = !(conMan.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.DISCONNECTED
+                                && conMan.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getReason().equals("dataDisabled"));
+
                         try {
                             Thread.sleep(5 * 1000);
                         } catch (InterruptedException e) {
@@ -213,7 +226,9 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         // Have a Circular Queue to hold data
         // Check if the network is available
         // if(true) -> Push the data from circular queue
-        odMqtt.publishMessge(data);
+
+        if(is3GEnabled || isWifiEnabled){
+        odMqtt.publishMessge(data);}
 
     }
 
