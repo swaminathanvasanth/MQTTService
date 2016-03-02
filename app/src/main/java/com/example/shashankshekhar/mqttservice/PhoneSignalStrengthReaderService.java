@@ -70,9 +70,10 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     public static int currentYear_logging;
     public String currentTime;
+    public String currentTimefordataupload;
+    public String previousTimefordataupload;
 
     public static BufferedWriter bw = null;
-
 
     // flag for GPS status
     boolean isGPSEnabled = false;
@@ -98,9 +99,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     Context context;
     ODMqtt odMqtt;
-    ConnectivityManager conMan;
-    boolean isWifiEnabled;
-    boolean is3GEnabled;
 
     public PhoneSignalStrengthReaderService() {
     }
@@ -117,11 +115,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         super.onCreate();
         context = getApplicationContext();
 
-        tel = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);/*
-        MyListener = new MyPhoneStateListener();
-        tel.listen(MyListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);*/
-
-        conMan = ((ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE));
+        tel = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -197,14 +191,10 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                             collectData();
                         }
                         Log.e("Thread Running", "Thread Running");
-
-
-                        isWifiEnabled = conMan.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isAvailable();
-                        is3GEnabled = !(conMan.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.DISCONNECTED
-                                && conMan.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getReason().equals("dataDisabled"));
+                        isNetworkEnabled = isNetworkAvailable();
 
                         try {
-                            Thread.sleep(5 * 1000);
+                            Thread.sleep(10 * 1000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -223,13 +213,32 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         getSignalStrength();
         writeToFile(data);
 
-        // Have a Circular Queue to hold data
+        // Have a Persistent Storage (Shared Preference) to hold data
         // Check if the network is available
-        // if(true) -> Push the data from circular queue
+        // if(true) -> Push the data from queue
 
-        if(is3GEnabled || isWifiEnabled){
-        odMqtt.publishMessge(data);}
+        if(isNetworkEnabled){
+            Log.e("NetworkEnabled","publishMessge");
+        odMqtt.publishMessge(data);
+        }
 
+    }
+
+    private boolean isNetworkAvailable() {
+        boolean haveConnectedWifi = false;
+        boolean haveConnectedMobile = false;
+
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo[] netInfo = cm.getAllNetworkInfo();
+        for (NetworkInfo ni : netInfo) {
+            if (ni.getTypeName().equalsIgnoreCase("WIFI"))
+                if (ni.isConnected())
+                    haveConnectedWifi = true;
+            if (ni.getTypeName().equalsIgnoreCase("MOBILE"))
+                if (ni.isConnected())
+                    haveConnectedMobile = true;
+        }
+        return haveConnectedWifi || haveConnectedMobile;
     }
 
     private String randomString() {
