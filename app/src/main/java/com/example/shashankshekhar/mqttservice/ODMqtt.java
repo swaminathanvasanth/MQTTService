@@ -24,8 +24,8 @@ import java.util.UUID;
 public class ODMqtt implements MqttCallback {
     private final int QoS = 1;
     private final String BROKER_ADDRESS = "tcp://smartx.cds.iisc.ac.in:1883";
-    private final String USERNAME = "admin";
-    private final String PASSWORD = "password";
+    private final String USERNAME = "ODAppUser";
+    private final String PASSWORD = "ODApp@Smartx";
     private final String TAG = "Open-Day";
     private final String TOPIC_NAME = "iisc/smartx/crowd/network/ODRSSI";
     private final String TEST_TOPIC_NAME = "iisc/smartx/mobile/water/data";
@@ -38,13 +38,13 @@ public class ODMqtt implements MqttCallback {
 
     private MqttConnectOptions connectOptions = null;
     private MqttAsyncClient mqttClient = null;
+
     private String clientId;
     private Context applicationContext;
-    private boolean isConnecting = false;
-
     public ODMqtt(Context appContext, String clientId) {
         this.applicationContext = appContext;
         this.clientId = clientId;
+        NetworkConnectivityChangeReceiver.initMqttObj(this);
     }
 
     private void setConnectionOptions() {
@@ -54,8 +54,6 @@ public class ODMqtt implements MqttCallback {
         connectOptions.setPassword(PASSWORD.toCharArray());
         connectOptions.setConnectionTimeout(20);
         connectOptions.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1_1);
-        // TODO: 29/02/16 receive the client id as a constructor param so that it is same for every reconnection req
-//        String randomClientId = randomString();
         MemoryPersistence persistence = new MemoryPersistence();
         try {
             mqttClient = new MqttAsyncClient(BROKER_ADDRESS, clientId, persistence);
@@ -65,32 +63,16 @@ public class ODMqtt implements MqttCallback {
         }
     }
 
-    public boolean connectToMqttBroker() {
-        if (isConnecting == true) {
-            printLog("connection in progress.. returning");
-            return false;
-        }
+    public void connectToMqttBroker() {
         setConnectionOptions();
+        mqttClient.setCallback(this);
         IMqttToken token;
         try {
-            isConnecting = true;
-            printLog("sending connect call");
             token = mqttClient.connect(connectOptions);
-            printLog("connect call done");
-            isConnecting = false;
-            mqttClient.setCallback(this);
-            return true;
         } catch (MqttException e) {
-            isConnecting = false;
             e.printStackTrace();
             printLog("exception, could not connect to mqtt");
-            return false;
         }
-    }
-
-    public void setBroadcastReceiver() {
-        IntentFilter intentFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        applicationContext.registerReceiver(broadcastReceiver, intentFilter);
     }
 
     public void disconnectMqtt() {
@@ -121,9 +103,7 @@ public class ODMqtt implements MqttCallback {
             return;
         }
         try {
-//            printLog("preparing to publish");
             deliveryToken = mqttClient.publish(TOPIC_NAME, message1);
-//            printLog("message published successfully with token" + deliveryToken);
         } catch (MqttException e) {
             e.printStackTrace();
             printLog("exception in publishing");
@@ -138,8 +118,6 @@ public class ODMqtt implements MqttCallback {
     public void connectionLost(Throwable cause) {
         printLog("connection lost in receiver!!");
         printLog("cause: " + cause.getCause());
-        printLog("Message: " + cause.getMessage());
-        printLog("LocalizedMessage: " + cause.getLocalizedMessage());
     }
 
     @Override
@@ -151,28 +129,6 @@ public class ODMqtt implements MqttCallback {
     public void messageArrived(String topic, MqttMessage msg) {
         printLog("message arrived");
     }
-
-    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (isMqttConnected() == true) {
-                printLog("client already connected ...returning from br");
-                return;
-            }
-            printLog("in br receiver");
-            final ConnectivityManager connMgr = (ConnectivityManager) context
-                    .getSystemService(Context.CONNECTIVITY_SERVICE);
-            final android.net.NetworkInfo wifi = connMgr
-                    .getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-            final android.net.NetworkInfo mobile = connMgr
-                    .getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-            if (wifi.isConnected() || mobile.isConnected()) {
-                printLog("in br receiver. sending reconnect call");
-                connectToMqttBroker();
-            }
-        }
-
-    };
 
     private void printLog(String string) {
         Log.i(TAG, string);
