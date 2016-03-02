@@ -130,8 +130,9 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, PhoneSignalStrengthReaderService.this);
 
         odMqtt = new ODMqtt(getApplicationContext(),randomString());
-        boolean isConnected =  odMqtt.connectToMqttBroker();
-        odMqtt.setBroadcastReceiver();
+        odMqtt.connectToMqttBroker();
+
+        //odMqtt.setBroadcastReceiver();
 
         new Thread() {
             public void run() {
@@ -208,6 +209,10 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
         getSignalStrength();
         writeToFile(data);
+
+        // Have a Circular Queue to hold data
+        // Check if the network is available
+        // if(true) -> Push the data from circular queue
         odMqtt.publishMessge(data);
 
     }
