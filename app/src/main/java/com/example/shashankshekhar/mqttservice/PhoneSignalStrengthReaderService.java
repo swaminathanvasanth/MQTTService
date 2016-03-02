@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
@@ -13,6 +14,7 @@ import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
+import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.telephony.CellInfoGsm;
 import android.telephony.CellInfoLte;
@@ -23,8 +25,10 @@ import android.telephony.CellSignalStrengthWcdma;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Calendar;
@@ -96,9 +100,20 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     // Declaring a Location Manager
     protected LocationManager locationManager;
+    public static int dataCount;
+    public static int dataCountFile;
 
     Context context;
     ODMqtt odMqtt;
+    public static SharedPreferences pref;
+    public static SharedPreferences prefFile;
+    public static SharedPreferences.Editor editor;
+    public static SharedPreferences.Editor editorFile;
+    public static FileInputStream is;
+    public static BufferedReader reader;
+    public static File mainfolder;
+    public static String root;
+    public static File file;
 
     public PhoneSignalStrengthReaderService() {
     }
@@ -115,6 +130,24 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         super.onCreate();
         context = getApplicationContext();
 
+        // Have a Persistent Storage (Shared Preference) to hold dataCount
+        pref = context.getSharedPreferences("OpenDaySharedPreference", MODE_PRIVATE);
+        editor = pref.edit();
+        dataCount = pref.getInt("dataCount", 0);
+        Log.e("Data Count", "Value is " + dataCount);
+
+        prefFile = context.getSharedPreferences("OpenDaySharedPreferenceFile", MODE_PRIVATE);
+        editorFile = prefFile.edit();
+        dataCountFile = prefFile.getInt("dataCountFile", 0);
+        Log.e("Data Count File", "Value is " + dataCountFile);
+
+        if (dataCountFile == 0) {
+            dataCountFile = 1;
+            editorFile.putInt("dataCountFile", dataCountFile);
+            editorFile.commit();
+            Log.e("Data Count File", "Value is " + dataCountFile);
+        }
+
         tel = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
@@ -130,7 +163,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         }
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000, 10, PhoneSignalStrengthReaderService.this);
 
-        odMqtt = new ODMqtt(getApplicationContext(),randomString());
+        odMqtt = new ODMqtt(getApplicationContext(), randomString());
         odMqtt.connectToMqttBroker();
 
         //odMqtt.setBroadcastReceiver();
@@ -139,7 +172,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
             public void run() {
                 while (true) {
                     try {
-
                         if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_EDGE) {
                             cellinfogsm = (CellInfoGsm) tel.getAllCellInfo().get(0);
                             cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
@@ -212,16 +244,34 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
         getSignalStrength();
         writeToFile(data);
+        sendData();
+    }
 
-        // Have a Persistent Storage (Shared Preference) to hold data
+    private void sendData() {
         // Check if the network is available
         // if(true) -> Push the data from queue
 
-        if(isNetworkEnabled){
-            Log.e("NetworkEnabled","publishMessge");
-        odMqtt.publishMessge(data);
-        }
+        if (isNetworkEnabled) {
+            Log.e("NetworkEnabled", "publishMessge");
+            if (dataCountFile - dataCount > 0) {
+                Log.e("DatacountFile>dataCount", "" + (dataCountFile - dataCount));
+                Log.e("Start Line Read", "-- Send remaining data");
+                odMqtt.publishMessge(data);
+                dataCount += 1;
+                editor.putInt("dataCount", dataCount);
+                editor.commit();
+                Log.e("dataCount", "" + dataCount);
+            } else {
+                Log.e("DatacountFile=dataCount", "" + (dataCountFile - dataCount));
+                odMqtt.publishMessge(data);
+                dataCount += 1;
+                editor.putInt("dataCount", dataCount);
+                editor.commit();
+                Log.e("dataCount", "" + dataCount);
+            }
 
+            Log.e("dataCount", "" + dataCount);
+        }
     }
 
     private boolean isNetworkAvailable() {
@@ -296,38 +346,43 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         currentMonth = (byte) (cal.get(Calendar.MONTH) + 1);
         currentYear_logging = cal.get(Calendar.YEAR);
 
-
         currentTime = currentDate + "/" + currentMonth + "/" + currentYear_logging + "," + currentHour + ":" + currentMinutes;
         data = currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude;
 
-        Log.e("data", data);
 
     }
 
     private void writeToFile(String _data) {
         try {
-
-            File mainfolder = new File(Environment.getExternalStorageDirectory() +
+            mainfolder = new File(Environment.getExternalStorageDirectory() +
                     File.separator + ("MobileSignalReader").trim());
 
             if (!mainfolder.exists()) {
                 mainfolder.mkdir();
             }
 
-            String root = Environment.getExternalStorageDirectory() +
+            root = Environment.getExternalStorageDirectory() +
                     File.separator + ("MobileSignalReader").trim();
 
-            File file = new File(root, "MobileSignalReader.csv");
+            file = new File(root, "MobileSignalReader.csv");
 
 
             bw = new BufferedWriter(new FileWriter(file, true));
 
-            bw.write("ABCDEF123$%,"+_data);
+            bw.write(dataCountFile + "," + "ABCDEF123$%," + _data);
             bw.newLine();
             bw.flush();
             bw.close();
-
+            Log.e("dataCountFile", dataCountFile + "," + "ABCDEF123$%," + _data);
             Log.e("writeToFile", "writeToFile");
+
+
+            dataCountFile += 1;
+            editorFile.putInt("dataCountFile", dataCountFile);
+            editorFile.commit();
+            Log.e("Data Count File ", "Value is " + dataCountFile);
+
+
         } catch (IOException e) {
             Log.e("Exception", "File write failed: " + e.toString());
         }
