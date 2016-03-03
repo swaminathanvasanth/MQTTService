@@ -117,8 +117,10 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     ODMqtt odMqtt;
     public static SharedPreferences pref;
     public static SharedPreferences prefFile;
+    public static SharedPreferences prefUID;
     public static SharedPreferences.Editor editor;
     public static SharedPreferences.Editor editorFile;
+    public static SharedPreferences.Editor editorUID;
     public static FileInputStream is;
     public static BufferedReader reader;
     public static File mainfolder;
@@ -134,6 +136,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     public static String MqttStatus;
 
+    public static int UID;
 
     public PhoneSignalStrengthReaderService() {
     }
@@ -149,6 +152,19 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         super.onCreate();
         context = getApplicationContext();
         deviceName = getDeviceName();
+
+        // Have a Persistent Storage (Shared Preference) to hold dataCount
+        prefUID = context.getSharedPreferences("OpenDaySharedPreferenceUID", MODE_PRIVATE);
+        editorUID = prefUID.edit();
+        UID = prefUID.getInt("randomUID", 0);
+        Log.e("randomUID", "randomUID is " + UID);
+
+        if(UID == 0){
+            UID = 1 + (int)(Math.random() * 100000);
+            editorUID.putInt("randomUID", UID);
+            editorUID.commit();
+            Log.e("randomUID", "randomUID is " + UID);
+        }
 
         // Have a Persistent Storage (Shared Preference) to hold dataCount
         pref = context.getSharedPreferences("OpenDaySharedPreference", MODE_PRIVATE);
@@ -321,7 +337,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     }
 
     private String getNetworkTypeName(int networkType) {
-
         switch (networkType) {
             case TelephonyManager.NETWORK_TYPE_GPRS:
                 return "2G_GPRS";
@@ -509,7 +524,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         currentYear_logging = cal.get(Calendar.YEAR);
         MqttStatus = odMqtt.getMqttStatus();
         currentTime = currentDate + "/" + currentMonth + "/" + currentYear_logging + "," + currentHour + ":" + currentMinutes;
-        data = deviceName + "," + currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude + "," + MqttStatus;
+        data = deviceName+"@"+UID + "," + currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude + "," + MqttStatus;
     }
 
     private void writeToFile(String _data) {
