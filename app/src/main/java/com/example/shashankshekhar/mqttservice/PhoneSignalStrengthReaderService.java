@@ -142,7 +142,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         throw new UnsupportedOperationException("Not yet implemented");
     }
 
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -414,12 +413,13 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 try {
                     fs = new FileInputStream(file);
                     br = new BufferedReader(new InputStreamReader(fs));
-                    for (int i = 1; i <= dataCountFile; i++) {
-                        br.readLine();
+                    for (int i = 0; i < dataCountFile; i++) {
+                        // br.readLine();
                         if (i == dataCount) {
                             data = br.readLine();
+                            Log.e("data after line read",dataCount +"-"+ dataCountFile +"-"+ data);
                             odMqtt.publishMessge(data);
-                            Thread.sleep(1000);
+                            Thread.sleep(5000);
                             dataCount += 1;
                             editor.putInt("dataCount", dataCount);
                             editor.commit();
@@ -433,12 +433,8 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                } else {
                 odMqtt.publishMessge(data);
-                dataCount += 1;
-                editor.putInt("dataCount", dataCount);
-                editor.commit();
-                Log.e("dataCount", "" + dataCount);
-            } else {
                 Log.e("DatacountFile=dataCount", "" + (dataCountFile - dataCount));
                 dataCount += 1;
                 editor.putInt("dataCount", dataCount);
@@ -585,7 +581,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     @Override
     public void onProviderDisabled(String provider) {
         turnGPSOn();
-
     }
 
     private void turnGPSOn() {

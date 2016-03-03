@@ -1,10 +1,6 @@
 package com.example.shashankshekhar.mqttservice;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.ConnectivityManager;
 import android.util.Log;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -14,9 +10,8 @@ import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.MqttSecurityException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-
-import java.util.UUID;
 
 /**
  * Created by shashankshekhar on 29/02/16.
@@ -29,13 +24,24 @@ public class ODMqtt implements MqttCallback {
     private final String TAG = "Open-Day";
     private final String TOPIC_NAME = "iisc/smartx/crowd/network/ODRSSI";
     private final String TEST_TOPIC_NAME = "iisc/smartx/mobile/water/data";
-    /*
-    sample data format
-    UID,TimeStamp,Latitude,Longitude,OperatorName,AreaCode,NetworkName,GSMSignalStrength
-     */
-    //smartx.cloudapp.net
-    //smartx.cds.iisc.ac.in
 
+    // connection constants
+
+    //DC - DELIVERY complete
+    private final String DELIVERY_COMPLETE = "DC";
+    //CL - connection lost
+    private final String CONNECTION_LOST = "CL";
+    //NoPub - could not publish - not connected to mqtt
+    private final String NO_PUB = "NoPub";
+    // failed when trying to reconnec to mqtt with Non security expection
+    private final String CONNECTION_EXP = "ConnectionExp";
+    // failed when trying to reconnec to mqtt with security expection
+    private final String SECURITY_EXP= "SecurityExp";
+    // trying to reconnect
+    private final String RECONNECTING = "reconnecting";
+
+
+    private String mqttStatus;
     private MqttConnectOptions connectOptions = null;
     private MqttAsyncClient mqttClient = null;
 
@@ -52,6 +58,8 @@ public class ODMqtt implements MqttCallback {
         connectOptions.setCleanSession(true);
         connectOptions.setUserName(USERNAME);
         connectOptions.setPassword(PASSWORD.toCharArray());
+        // new addition
+        connectOptions.setKeepAliveInterval(300);
         connectOptions.setConnectionTimeout(20);
         connectOptions.setMqttVersion(MqttConnectOptions.MQTT_VERSION_3_1_1);
         MemoryPersistence persistence = new MemoryPersistence();
@@ -68,13 +76,27 @@ public class ODMqtt implements MqttCallback {
         mqttClient.setCallback(this);
         IMqttToken token;
         try {
+            mqttStatus = RECONNECTING;
             token = mqttClient.connect(connectOptions);
-        } catch (MqttException e) {
-            e.printStackTrace();
-            printLog("exception, could not connect to mqtt");
+        }
+        catch (MqttSecurityException e) {
+            if (e.getCause()!= null) {
+                mqttStatus = SECURITY_EXP + "-"+e.getCause();
+            } else
+                mqttStatus = SECURITY_EXP;
+        }
+        catch (MqttException e) {
+            if (e.getCause()!= null) {
+                mqttStatus = CONNECTION_EXP + "-"+e.getCause();
+            } else
+
+                mqttStatus = CONNECTION_EXP;
+
         }
     }
-
+    public String getMqttStatus() {
+        return mqttStatus;
+    }
     public void disconnectMqtt() {
         if (mqttClient.isConnected() == false) {
             return;
@@ -95,11 +117,15 @@ public class ODMqtt implements MqttCallback {
     }
 
     public void publishMessge(String dataString) {
+        if (dataString == null || dataString.isEmpty()) {
+            return;
+        }
         IMqttDeliveryToken deliveryToken;
         MqttMessage message1 = new MqttMessage(dataString.getBytes());
         message1.setQos(QoS);
         if (mqttClient.isConnected() == false) {
             printLog("error in publishing,mqtt is not connected");
+            mqttStatus = NO_PUB;
             return;
         }
         try {
@@ -117,12 +143,17 @@ public class ODMqtt implements MqttCallback {
     @Override
     public void connectionLost(Throwable cause) {
         printLog("connection lost in receiver!!");
-        printLog("cause: " + cause.getCause());
+        if (cause!= null && cause.getCause()!= null) {
+            mqttStatus = CONNECTION_LOST + "-" + cause.getCause();
+        } else {
+            mqttStatus = CONNECTION_LOST;
+        }
     }
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken tk) {
         printLog("delivery complete for token: " + tk);
+        mqttStatus = DELIVERY_COMPLETE;
     }
 
     @Override
