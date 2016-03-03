@@ -11,6 +11,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
@@ -34,8 +35,10 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Calendar;
 import java.util.List;
 import java.util.TimeZone;
@@ -43,7 +46,7 @@ import java.util.UUID;
 
 public class PhoneSignalStrengthReaderService extends Service implements LocationListener {
 
-
+    public String deviceName;
     public static int mcc = 0, mnc = 0;
     public static TelephonyManager tel;
     public static String networkOperator;
@@ -125,6 +128,9 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     public static final int UNKNOW_CODE = 99;
     int MAX_SIGNAL_DBM_VALUE = 31;
 
+    BufferedReader br;
+    FileInputStream fs;
+
 
     public PhoneSignalStrengthReaderService() {
     }
@@ -140,6 +146,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     public void onCreate() {
         super.onCreate();
         context = getApplicationContext();
+        deviceName = getDeviceName();
 
         // Have a Persistent Storage (Shared Preference) to hold dataCount
         pref = context.getSharedPreferences("OpenDaySharedPreference", MODE_PRIVATE);
@@ -195,7 +202,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                     try {
 
                         NetworkConnectionType = getNetworkTypeName(tel.getNetworkType());
-                        Log.e("NetworkConnectionType",NetworkConnectionType);
+                        Log.e("NetworkConnectionType", NetworkConnectionType);
 
                         if (tel.getAllCellInfo() != null && tel.getAllCellInfo().size() != 0) {
 
@@ -291,6 +298,28 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     }
 
+    public String getDeviceName() {
+        String manufacturer = Build.MANUFACTURER;
+        String model = Build.MODEL;
+        if (model.startsWith(manufacturer)) {
+            return capitalize(model);
+        } else {
+            return capitalize(manufacturer) + " " + model;
+        }
+    }
+
+    private String capitalize(String s) {
+        if (s == null || s.length() == 0) {
+            return "";
+        }
+        char first = s.charAt(0);
+        if (Character.isUpperCase(first)) {
+            return s;
+        } else {
+            return Character.toUpperCase(first) + s.substring(1);
+        }
+    }
+
     private String getNetworkTypeName(int networkType) {
 
         switch (networkType) {
@@ -351,15 +380,12 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
 
             if (null != signalStrength && signalStrength.getGsmSignalStrength() != UNKNOW_CODE) {
-                int signalStrengthPercent = calculateSignalStrengthInPercent(signalStrength.getGsmSignalStrength());
-                Log.e("signalStrengthGSM %", "" + signalStrengthPercent);
-                getSignalStrength();
+                Log.e("getGsmSignalStrength", "" + signalStrength.getGsmSignalStrength());
+                RSSI = "" + ((2 * signalStrength.getGsmSignalStrength()) - 113);
+                Log.e("GSM dbm", RSSI);
+                collectData();
             }
         }
-    }
-
-    private int calculateSignalStrengthInPercent(int signalStrength) {
-        return (int) ((float) signalStrength / MAX_SIGNAL_DBM_VALUE * 100);
     }
 
     private void collectData() {
@@ -378,6 +404,32 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
             if (dataCountFile - dataCount > 0) {
                 Log.e("DatacountFile>dataCount", "" + (dataCountFile - dataCount));
                 Log.e("Start Line Read", "-- Send remaining data");
+
+                // Read file and Loop from dataCount to dataCountFile
+                //sendData
+
+                try {
+                    fs = new FileInputStream(file);
+                    br = new BufferedReader(new InputStreamReader(fs));
+                    for (int i = 1; i <= dataCountFile; i++) {
+                        br.readLine();
+                        if (i == dataCount) {
+                            data = br.readLine();
+                            odMqtt.publishMessge(data);
+                            Thread.sleep(1000);
+                            dataCount += 1;
+                            editor.putInt("dataCount", dataCount);
+                            editor.commit();
+                            Log.e("dataCount", "" + dataCount +"---"+ data);
+                        }
+                    }
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 odMqtt.publishMessge(data);
                 dataCount += 1;
                 editor.putInt("dataCount", dataCount);
@@ -391,7 +443,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 editor.commit();
                 Log.e("dataCount", "" + dataCount);
             }
-
             Log.e("dataCount", "" + dataCount);
         }
     }
@@ -436,7 +487,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         // PhoneCount = ""+tel.getPhoneCount();
         PhoneType = "" + tel.getPhoneType();
 
-
         if (networkOperator != null) {
             mcc = Integer.parseInt(networkOperator.substring(0, 3));
             mnc = Integer.parseInt(networkOperator.substring(3));
@@ -469,7 +519,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         currentYear_logging = cal.get(Calendar.YEAR);
 
         currentTime = currentDate + "/" + currentMonth + "/" + currentYear_logging + "," + currentHour + ":" + currentMinutes;
-        data = currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude;
+        data = deviceName + "," + currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude;
 
 
     }
@@ -491,11 +541,11 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
             bw = new BufferedWriter(new FileWriter(file, true));
 
-            bw.write(dataCountFile + "," + "ABCDEF123$%," + _data);
+            bw.write(_data);
             bw.newLine();
             bw.flush();
             bw.close();
-            Log.e("dataCountFile", dataCountFile + "," + "ABCDEF123$%," + _data);
+            Log.e("dataCountFile", dataCountFile + "," + _data);
             Log.e("writeToFile", "writeToFile");
 
 
