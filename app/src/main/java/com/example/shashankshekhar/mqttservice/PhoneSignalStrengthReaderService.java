@@ -93,6 +93,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     // flag for network status
     boolean isNetworkEnabled = false;
+    boolean isMQTTConnected = false;
 
     // flag for GPS status
     boolean canGetLocation = false;
@@ -147,6 +148,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         super.onCreate();
         context = getApplicationContext();
         deviceName = getDeviceName();
+
 
         // Have a Persistent Storage (Shared Preference) to hold dataCount
         pref = context.getSharedPreferences("OpenDaySharedPreference", MODE_PRIVATE);
@@ -282,6 +284,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
                         Log.e("Thread Running", "Thread Running");
                         isNetworkEnabled = isNetworkAvailable();
+                        isMQTTConnected = odMqtt.isMqttConnected();
 
                         try {
                             Thread.sleep(10 * 1000);
@@ -399,7 +402,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         // Check if the network is available
         // if(true) -> Push the data from queue
 
-        if (isNetworkEnabled) {
+        if (isNetworkEnabled && isMQTTConnected) {
             Log.e("NetworkEnabled", "publishMessge");
             if (dataCountFile - dataCount > 0) {
                 Log.e("DatacountFile>dataCount", "" + (dataCountFile - dataCount));
@@ -437,7 +440,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 Log.e("dataCount", "" + dataCount);
             } else {
                 Log.e("DatacountFile=dataCount", "" + (dataCountFile - dataCount));
-                odMqtt.publishMessge(data);
                 dataCount += 1;
                 editor.putInt("dataCount", dataCount);
                 editor.commit();
