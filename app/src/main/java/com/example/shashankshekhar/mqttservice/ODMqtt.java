@@ -41,7 +41,7 @@ public class ODMqtt implements MqttCallback {
     private final String RECONNECTING = "reconnecting";
 
 
-    private String mqttStatus;
+    private String mqttStatus = "mqttStatus";
     private MqttConnectOptions connectOptions = null;
     private MqttAsyncClient mqttClient = null;
 

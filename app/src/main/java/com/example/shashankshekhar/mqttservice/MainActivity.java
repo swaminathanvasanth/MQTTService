@@ -17,8 +17,6 @@ public class MainActivity extends AppCompatActivity {
     public static int dataCount;
     public static int dataCountFile;
 
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -28,7 +26,6 @@ public class MainActivity extends AppCompatActivity {
         pref = context.getSharedPreferences("OpenDaySharedPreference", MODE_PRIVATE);
         editor = pref.edit();
         dataCount = pref.getInt("dataCount", 0);
-
 
         prefFile = context.getSharedPreferences("OpenDaySharedPreferenceFile", MODE_PRIVATE);
         editorFile = prefFile.edit();
@@ -49,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
         editor.commit();
         dataCount = pref.getInt("dataCount", 0);
         Log.e("Data Count A", "Value is " + dataCount);
-
 
         Log.e("Data Count File B", "Value is " + dataCountFile);
         editorFile.putInt("dataCountFile", 0);

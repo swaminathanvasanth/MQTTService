@@ -132,6 +132,8 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     BufferedReader br;
     FileInputStream fs;
 
+    public static String MqttStatus;
+
 
     public PhoneSignalStrengthReaderService() {
     }
@@ -147,7 +149,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         super.onCreate();
         context = getApplicationContext();
         deviceName = getDeviceName();
-
 
         // Have a Persistent Storage (Shared Preference) to hold dataCount
         pref = context.getSharedPreferences("OpenDaySharedPreference", MODE_PRIVATE);
@@ -214,7 +215,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthGsm.getDbm();
                                     Log.e("cellinfogsm EDGE", cellinfogsm.toString() + " : " + RSSI);
-                                    collectData();
+
                                 } catch (ClassCastException c) {
 
                                 }
@@ -224,7 +225,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthGsm = cellinfogsm.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthGsm.getDbm();
                                     Log.e("cellinfogsm GPRS", cellinfogsm.toString() + " : " + RSSI);
-                                    collectData();
+
                                 } catch (ClassCastException c) {
 
                                 }
@@ -234,7 +235,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthWcdma.getDbm();
                                     Log.e("cellInfoWcdma HSPA", cellInfoWcdma.toString() + " : " + RSSI);
-                                    collectData();
                                 } catch (ClassCastException c) {
 
                                 }
@@ -244,7 +244,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthWcdma.getDbm();
                                     Log.e("cellInfoWcdma HSDPA", cellInfoWcdma.toString() + " : " + RSSI);
-                                    collectData();
                                 } catch (ClassCastException c) {
 
                                 }
@@ -254,9 +253,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthWcdma.getDbm();
                                     Log.e("cellInfoWcdma HSPAP", cellInfoWcdma.toString() + " : " + RSSI);
-                                    collectData();
                                 } catch (ClassCastException c) {
-
                                 }
                             } else if (tel.getNetworkType() == TelephonyManager.NETWORK_TYPE_HSUPA) {
                                 try {
@@ -264,7 +261,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthWcdma = cellInfoWcdma.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthWcdma.getDbm();
                                     Log.e("cellInfoWcdma HSUPA", cellInfoWcdma.toString() + " : " + RSSI);
-                                    collectData();
                                 } catch (ClassCastException c) {
 
                                 }
@@ -274,22 +270,24 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                                     cellSignalStrengthLte = cellInfoLte.getCellSignalStrength();
                                     RSSI = "" + cellSignalStrengthLte.getDbm();
                                     Log.e("cellInfoLTE LTE", cellInfoLte.toString() + " : " + RSSI);
-                                    collectData();
                                 } catch (ClassCastException c) {
-
                                 }
                             }
                         }
 
                         Log.e("Thread Running", "Thread Running");
-                        isNetworkEnabled = isNetworkAvailable();
-                        isMQTTConnected = odMqtt.isMqttConnected();
 
                         try {
                             Thread.sleep(10 * 1000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
+
+                        getSignalStrength();
+                        isNetworkEnabled = isNetworkAvailable();
+                        isMQTTConnected = odMqtt.isMqttConnected();
+                        collectData();
+
 
                     } catch (Exception es) {
                         es.printStackTrace();
@@ -385,14 +383,13 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 Log.e("getGsmSignalStrength", "" + signalStrength.getGsmSignalStrength());
                 RSSI = "" + ((2 * signalStrength.getGsmSignalStrength()) - 113);
                 Log.e("GSM dbm", RSSI);
-                collectData();
+                getSignalStrength();
             }
         }
     }
 
     private void collectData() {
 
-        getSignalStrength();
         writeToFile(data);
         sendData();
     }
@@ -414,16 +411,15 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                     fs = new FileInputStream(file);
                     br = new BufferedReader(new InputStreamReader(fs));
                     for (int i = 0; i < dataCountFile; i++) {
-                        // br.readLine();
                         if (i == dataCount) {
                             data = br.readLine();
-                            Log.e("data after line read",dataCount +"-"+ dataCountFile +"-"+ data);
+                            Log.e("data after line read", dataCount + "-" + dataCountFile + "-" + data);
                             odMqtt.publishMessge(data);
                             Thread.sleep(5000);
                             dataCount += 1;
                             editor.putInt("dataCount", dataCount);
                             editor.commit();
-                            Log.e("dataCount", "" + dataCount +"---"+ data);
+                            Log.e("dataCount", "" + dataCount + "---" + data);
                         }
                     }
                 } catch (FileNotFoundException e) {
@@ -433,7 +429,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                } else {
+            } else {
                 odMqtt.publishMessge(data);
                 Log.e("DatacountFile=dataCount", "" + (dataCountFile - dataCount));
                 dataCount += 1;
@@ -473,7 +469,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         simOperator = tel.getSimOperator();
         simOperatorName = tel.getSimOperatorName();
         NetworkOperatorName = tel.getNetworkOperatorName();
-        //String AllCellInfo = tel.getAllCellInfo();
         CallState = "" + tel.getCallState();
         CellLocation = "" + tel.getCellLocation();
         DeviceSoftwareVersion = "" + tel.getDeviceSoftwareVersion();
@@ -482,7 +477,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         DataState = "" + tel.getDataState();
         Line1Number = tel.getLine1Number();
         NetworkType = "" + tel.getNetworkType();
-        // PhoneCount = ""+tel.getPhoneCount();
         PhoneType = "" + tel.getPhoneType();
 
         if (networkOperator != null) {
@@ -504,9 +498,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         Log.e("latitude", "" + latitude);
         Log.e("longitude", "" + longitude);
 
-
         System.out.println("\n --------------------------------");
-
 
         cal = Calendar.getInstance(TimeZone.getTimeZone("GMT+5:30"));
         currentHour = (byte) cal.get(Calendar.HOUR_OF_DAY);
@@ -515,11 +507,9 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         currentDate = (byte) (cal.get(Calendar.DATE));
         currentMonth = (byte) (cal.get(Calendar.MONTH) + 1);
         currentYear_logging = cal.get(Calendar.YEAR);
-
+        MqttStatus = odMqtt.getMqttStatus();
         currentTime = currentDate + "/" + currentMonth + "/" + currentYear_logging + "," + currentHour + ":" + currentMinutes;
-        data = deviceName + "," + currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude;
-
-
+        data = deviceName + "," + currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude + "," + MqttStatus;
     }
 
     private void writeToFile(String _data) {
@@ -533,26 +523,20 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
             root = Environment.getExternalStorageDirectory() +
                     File.separator + ("MobileSignalReader").trim();
-
             file = new File(root, "MobileSignalReader.csv");
-
-
             bw = new BufferedWriter(new FileWriter(file, true));
-
             bw.write(_data);
             bw.newLine();
             bw.flush();
             bw.close();
+
             Log.e("dataCountFile", dataCountFile + "," + _data);
             Log.e("writeToFile", "writeToFile");
-
 
             dataCountFile += 1;
             editorFile.putInt("dataCountFile", dataCountFile);
             editorFile.commit();
             Log.e("Data Count File ", "Value is " + dataCountFile);
-
-
         } catch (IOException e) {
             Log.e("Exception", "File write failed: " + e.toString());
         }
