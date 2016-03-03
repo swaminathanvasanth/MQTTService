@@ -37,6 +37,8 @@ public class ODMqtt implements MqttCallback {
     private final String CONNECTION_EXP = "ConnectionExp";
     // failed when trying to reconnec to mqtt with security expection
     private final String SECURITY_EXP= "SecurityExp";
+    // trying to reconnect
+    private final String RECONNECTING = "reconnecting";
 
 
     private String mqttStatus;
@@ -74,6 +76,7 @@ public class ODMqtt implements MqttCallback {
         mqttClient.setCallback(this);
         IMqttToken token;
         try {
+            mqttStatus = RECONNECTING;
             token = mqttClient.connect(connectOptions);
         }
         catch (MqttSecurityException e) {
