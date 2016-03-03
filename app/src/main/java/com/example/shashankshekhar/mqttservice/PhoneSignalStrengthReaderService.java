@@ -53,7 +53,6 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     public static String simOperator;
     public static String simOperatorName;
     public static String NetworkOperatorName;
-    //String AllCellInfo = tel.getAllCellInfo();
     public static String RSSI;
     public static String CallState;
     public static String CellLocation;
@@ -89,24 +88,24 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     public static BufferedWriter bw = null;
 
     // flag for GPS status
-    boolean isGPSEnabled = false;
+    public static boolean isGPSEnabled = false;
 
     // flag for network status
-    boolean isNetworkEnabled = false;
-    boolean isMQTTConnected = false;
+    public static boolean isNetworkEnabled = false;
+    public static boolean isMQTTConnected = false;
 
     // flag for GPS status
-    boolean canGetLocation = false;
+    public static boolean canGetLocation = false;
 
     Location location; // location
-    double latitude; // latitude
-    double longitude; // longitude
+    public static double latitude = 0; // latitude
+    public static double longitude = 0; // longitude
 
     // The minimum distance to change Updates in meters
     private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10; // 10 meters
 
-    // The minimum time between updates in milliseconds
-    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 1; // 1 minute
+    // The minimum time between sampling in milliseconds
+    private static final long MIN_TIME_BW_SAMPLING = 1000 * 30 * 1; // 30 seconds
 
     // Declaring a Location Manager
     protected LocationManager locationManager;
@@ -129,7 +128,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
     MyPhoneStateListener myPhoneStateListener;
 
     public static final int UNKNOW_CODE = 99;
-    int MAX_SIGNAL_DBM_VALUE = 31;
+    public static int MAX_SIGNAL_DBM_VALUE = 31;
 
     BufferedReader br;
     FileInputStream fs;
@@ -294,7 +293,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                         Log.e("Thread Running", "Thread Running");
 
                         try {
-                            Thread.sleep(10 * 1000);
+                            Thread.sleep(MIN_TIME_BW_SAMPLING);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
