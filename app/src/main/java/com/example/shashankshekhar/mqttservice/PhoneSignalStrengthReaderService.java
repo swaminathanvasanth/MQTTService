@@ -415,6 +415,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
         if (isNetworkEnabled && isMQTTConnected) {
             Log.e("NetworkEnabled", "publishMessge");
+
             if (dataCountFile - dataCount > 0) {
                 Log.e("DatacountFile>dataCount", "" + (dataCountFile - dataCount));
                 Log.e("Start Line Read", "-- Send remaining data");
@@ -425,16 +426,16 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 try {
                     fs = new FileInputStream(file);
                     br = new BufferedReader(new InputStreamReader(fs));
-                    for (int i = 0; i < dataCountFile; i++) {
+                    for (int i = 0; i <= dataCountFile; i++) {
                         if (i == dataCount) {
                             data = br.readLine();
-                            Log.e("data after line read", dataCount + "-" + dataCountFile + "-" + data);
+                            Log.e("data after line read", + i +"-" +dataCount + "-" + dataCountFile + "-" + data);
                             odMqtt.publishMessge(data);
-                            Thread.sleep(5000);
                             dataCount += 1;
                             editor.putInt("dataCount", dataCount);
                             editor.commit();
                             Log.e("dataCount", "" + dataCount + "---" + data);
+                            Thread.sleep(1000);
                         }
                     }
                 } catch (FileNotFoundException e) {
@@ -453,6 +454,8 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
                 Log.e("dataCount", "" + dataCount);
             }
             Log.e("dataCount", "" + dataCount);
+        } else if(isNetworkEnabled){
+            odMqtt.connectToMqttBroker();
         }
     }
 
@@ -523,6 +526,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         currentMonth = (byte) (cal.get(Calendar.MONTH) + 1);
         currentYear_logging = cal.get(Calendar.YEAR);
         MqttStatus = odMqtt.getMqttStatus();
+        Log.e("MqttStatus",MqttStatus);
         currentTime = currentDate + "/" + currentMonth + "/" + currentYear_logging + "," + currentHour + ":" + currentMinutes;
         data = deviceName+"@"+UID + "," + currentTime + "," + simOperatorName + "," + NetworkOperatorName + "," + NetworkConnectionType + "," + RSSI + "," + latitude + "," + longitude + "," + MqttStatus;
     }
