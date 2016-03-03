@@ -3,6 +3,7 @@ package com.example.shashankshekhar.mqttservice;
 import android.content.Context;
 import android.util.Log;
 
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
@@ -34,11 +35,15 @@ public class ODMqtt implements MqttCallback {
     //NoPub - could not publish - not connected to mqtt
     private final String NO_PUB = "NoPub";
     // failed when trying to reconnec to mqtt with Non security expection
-    private final String CONNECTION_EXP = "ConnectionExp";
+    private final String CONNECTION_EXP = "ConExp";
     // failed when trying to reconnec to mqtt with security expection
-    private final String SECURITY_EXP= "SecurityExp";
+    private final String SECURITY_EXP= "SecExp";
     // trying to reconnect
-    private final String RECONNECTING = "reconnecting";
+    private final String RECONNECTING = "Recon";
+    //connected to mqtt broker
+    private final String CONNECTED = "Conn";
+    //connect failed to mqtt broker
+    private final  String CONN_ERR = "ConnErr";
 
     private String mqttStatus = "mqttStatus";
     private MqttConnectOptions connectOptions = null;
@@ -46,6 +51,7 @@ public class ODMqtt implements MqttCallback {
 
     private String clientId;
     private Context applicationContext;
+    private boolean isConnecting = false;
     public ODMqtt(Context appContext, String clientId) {
         this.applicationContext = appContext;
         this.clientId = clientId;
@@ -71,12 +77,38 @@ public class ODMqtt implements MqttCallback {
     }
 
     public void connectToMqttBroker() {
+        if (isConnecting == true) {
+            printLog("connection in progress.. returning");
+            return;
+        }
         setConnectionOptions();
         mqttClient.setCallback(this);
         IMqttToken token;
         try {
             mqttStatus = RECONNECTING;
-            token = mqttClient.connect(connectOptions);
+            printLog("sending connection req");
+            isConnecting = true;
+            token = mqttClient.connect(connectOptions, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken iMqttToken) {
+                    printLog("connected");
+                    mqttStatus = CONNECTED;
+                    isConnecting = false;
+                }
+
+                @Override
+                public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
+                    printLog("disconnected");
+                    isConnecting = false;
+                    if (throwable!= null && throwable.getCause()!= null) {
+                        mqttStatus = CONN_ERR + "-"+throwable.getCause();
+                    }
+                    else {
+                        mqttStatus = CONN_ERR;
+                    }
+                }
+            });
+
         }
         catch (MqttSecurityException e) {
             if (e.getCause()!= null) {
@@ -157,7 +189,6 @@ public class ODMqtt implements MqttCallback {
 
     @Override
     public void messageArrived(String topic, MqttMessage msg) {
-        printLog("message arrived");
     }
 
     private void printLog(String string) {
