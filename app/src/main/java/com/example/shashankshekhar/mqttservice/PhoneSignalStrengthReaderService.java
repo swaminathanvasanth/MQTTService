@@ -1,6 +1,7 @@
 package com.example.shashankshekhar.mqttservice;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -214,6 +215,7 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
         odMqtt.connectToMqttBroker();
 
         new Thread() {
+            @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
             public void run() {
                 while (true) {
                     try {
@@ -482,25 +484,28 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     public void getSignalStrength() {
 
-        networkOperator = tel.getNetworkOperator();
-        simOperator = tel.getSimOperator();
-        simOperatorName = tel.getSimOperatorName();
-        NetworkOperatorName = tel.getNetworkOperatorName();
-        CallState = "" + tel.getCallState();
-        CellLocation = "" + tel.getCellLocation();
-        DeviceSoftwareVersion = "" + tel.getDeviceSoftwareVersion();
-        DataActivity = "" + tel.getDataActivity();
-        DeviceId = "" + tel.getDeviceId();
-        DataState = "" + tel.getDataState();
-        Line1Number = tel.getLine1Number();
-        NetworkType = "" + tel.getNetworkType();
-        PhoneType = "" + tel.getPhoneType();
+        try {
+            networkOperator = tel.getNetworkOperator();
+            simOperator = tel.getSimOperator();
+            simOperatorName = tel.getSimOperatorName();
+            NetworkOperatorName = tel.getNetworkOperatorName();
+            CallState = "" + tel.getCallState();
+            CellLocation = "" + tel.getCellLocation();
+            DeviceSoftwareVersion = "" + tel.getDeviceSoftwareVersion();
+            DataActivity = "" + tel.getDataActivity();
+            DeviceId = "" + tel.getDeviceId();
+            DataState = "" + tel.getDataState();
+            Line1Number = tel.getLine1Number();
+            NetworkType = "" + tel.getNetworkType();
+            PhoneType = "" + tel.getPhoneType();
 
-        if (networkOperator != null) {
-            mcc = Integer.parseInt(networkOperator.substring(0, 3));
-            mnc = Integer.parseInt(networkOperator.substring(3));
+            if (networkOperator != null) {
+                mcc = Integer.parseInt(networkOperator.substring(0, 3));
+                mnc = Integer.parseInt(networkOperator.substring(3));
+            }
+        } catch (Exception e){
+
         }
-
 
         Log.e("simOperator", "---" + simOperator);
         Log.e("simOperatorName", "---" + simOperatorName);
