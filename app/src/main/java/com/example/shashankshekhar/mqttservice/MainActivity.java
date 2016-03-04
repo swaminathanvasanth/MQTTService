@@ -8,6 +8,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 
+import java.util.Calendar;
+import java.util.TimeZone;
+
 public class MainActivity extends AppCompatActivity {
     Context context;
     public static SharedPreferences pref;
@@ -16,6 +19,14 @@ public class MainActivity extends AppCompatActivity {
     public static SharedPreferences.Editor editorFile;
     public static int dataCount;
     public static int dataCountFile;
+
+    public static Calendar cal;
+    public static byte currentSecond;
+    public static byte currentHour;
+    public static byte currentMinutes;
+    public static byte currentDate;
+    public static byte currentMonth;
+    public static int currentYear_logging;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,7 +44,18 @@ public class MainActivity extends AppCompatActivity {
 
     }
     public void startService (View view) {
-        startService(new Intent(this, PhoneSignalStrengthReaderService.class));
+
+        cal = Calendar.getInstance(TimeZone.getTimeZone("GMT+5:30"));
+        currentDate = (byte) (cal.get(Calendar.DATE));
+        currentMonth = (byte) (cal.get(Calendar.MONTH) + 1);
+        currentYear_logging = cal.get(Calendar.YEAR);
+
+
+        Log.e("Date",""+currentDate+currentMonth+currentYear_logging);
+
+        if(currentDate == 4 && currentMonth == 3){
+            startService(new Intent(this, PhoneSignalStrengthReaderService.class));
+        }
     }
     public void stopService (View view) {
         stopService(new Intent(this, PhoneSignalStrengthReaderService.class));
