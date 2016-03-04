@@ -582,15 +582,8 @@ public class PhoneSignalStrengthReaderService extends Service implements Locatio
 
     @Override
     public void onProviderDisabled(String provider) {
-        turnGPSOn();
-    }
 
-    private void turnGPSOn() {
-        Intent intent = new Intent("android.location.GPS_ENABLED_CHANGE");
-        intent.putExtra("enabled", true);
-        sendBroadcast(intent);
     }
-
 }
 
 
